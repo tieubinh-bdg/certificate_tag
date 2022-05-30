@@ -17,7 +17,7 @@ namespace EmbedTenantName
         public byte[] asn1Bytes;      // the PKCS#7, SignedData in DER form.
         public byte[] appendedTag;    // the appended tag, if any.
 
-        public signedData signedData; // the parsed SignedData structure.
+        //public signedData signedData; // the parsed SignedData structure.
         UInt32 attributeCertificateRevision = 0x200;
         int attributeCertificateTypePKCS7SignedData = 2;
 
