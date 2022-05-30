@@ -36,11 +36,13 @@
 
 //    };
 //    // signedData represents a PKCS#7, SignedData strucure.
-//    struct signedData {
+//    struct signedData
+//    {
 
 //        public asn1.ObjectIdentifier Type;
 
-//        struct PKCS7 {
+//        struct PKCS7
+//        {
 
 //            public int Version;
 
@@ -103,7 +105,7 @@
 
 //        public const int certificateTableIndex = 4;
 
-        
+
 //        public (int offset, int size, int sizeOffset, string err) getAttributeCertificates(byte[] bin)
 //        {
 //            // offsetOfPEHeaderOffset is the offset into the binary where the
@@ -137,18 +139,19 @@
 //            byte[] pe = ByteArrayHelper.slicesArray(bin, peOffset, bin.Length);
 
 //            //lib
-//            byte[] PEtemp =  { (byte )'P', (byte)'E', 0, 0 };
-//            if(!ByteArrayHelper.EqualByteArr(ByteArrayHelper.slicesArray(pe,0,4), PEtemp)){
+//            byte[] PEtemp = { (byte)'P', (byte)'E', 0, 0 };
+//            if (!ByteArrayHelper.EqualByteArr(ByteArrayHelper.slicesArray(pe, 0, 4), PEtemp))
+//            {
 //                err = "PE header not found at expected offset";
-//                return  (offset, size, sizeOffset, err);
+//                return (offset, size, sizeOffset, err);
 //            }
-           
+
 //            //r:= io.Reader(bytes.NewReader(pe[4:])) //cast
 //            //Reader r = new Reader(bytes.newReader(slicesArray(pe, 4, pe.Length));
 //            Reader r = new Reader(ByteArrayHelper.slicesArray(pe, 4, pe.Length));
 //            //ByteOrder kind: littleEndian 
 //            ByteOrder order = new ByteOrder();
-//            fileHeader fileHeader = new fileHeader() ;
+//            fileHeader fileHeader = new fileHeader();
 //            //TODO: need to check Reader + LimitedReader
 //            err = binary.Read(r, order, fileHeader);
 //            if (err != null)
@@ -163,7 +166,8 @@
 //                return (offset, size, sizeOffset, err);
 //            }
 
-//            if ((fileHeader.Characteristics & coffCharacteristicDLL) != 0) {
+//            if ((fileHeader.Characteristics & coffCharacteristicDLL) != 0)
+//            {
 //                //err = errors.New("file is a DLL");
 
 //                return (offset, size, sizeOffset, err);
@@ -184,7 +188,8 @@
 //            int addressSize;
 
 
-//            switch (optionalHeader.Magic) {
+//            switch (optionalHeader.Magic)
+//            {
 //                case pe32PlusMagic: //0x20b
 //                    addressSize = 8;
 
@@ -392,7 +397,7 @@
 
 //            //}
 //            return (signedData, err);
-           
+
 //        }
 
 //        //        public (X509Certificate cert, int index, string err) getSuperfluousCert(signedData signedData)  
@@ -587,7 +592,7 @@
 //            }
 
 //            asn1 = ByteArrayHelper.slicesArray(certs, 8, certs.Length);
-            
+
 //            if (asn1.Length < 2)
 //            {
 //                //err = errors.New("ASN.1 structure truncated")
@@ -605,7 +610,7 @@
 
 //            appendedTag = ByteArrayHelper.slicesArray(asn1, asn1Length, asn1.Length);
 //            asn1 = ByteArrayHelper.slicesArray(asn1, 0, asn1Length);
-           
+
 //            return (asn1, appendedTag, err);
 //        }
 
@@ -616,7 +621,7 @@
 //        {
 //            PE32Binary pe = NewPE32Binary(contents).Item1;
 //            string err = NewPE32Binary(contents).Item2;
-//            if(err == null)
+//            if (err == null)
 //            {
 //                return (pe, err);
 //            }
@@ -645,7 +650,8 @@
 //            }
 
 //            signedData signedData = parseSignedData(asn1Data).signedData;
-//            PE32Binary result = new PE32Binary() { 
+//            PE32Binary result = new PE32Binary()
+//            {
 //                contents = contents,
 //                attrCertOffset = offset,
 //                certSizeOffset = certSizeOffset,
@@ -655,7 +661,6 @@
 //            };
 //            return (result, null);
 //        }
-        
-//    } 
+
+//    }
 //}
- 
