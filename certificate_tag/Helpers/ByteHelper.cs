@@ -11,7 +11,7 @@ namespace EmbedTenantName.Helpers
     {
         public const UInt16 Pe32Magic = 0x10b;
         public const UInt16 Pe32PlusMagic = 0x20b;
-        
+
         public const int OffsetOfPEHeaderOffset = 0x3c;
         public const int CertificateTableIndex = 4;
         public const ushort CoffCharacteristicExecutableImage = 2;
@@ -48,30 +48,37 @@ namespace EmbedTenantName.Helpers
             return Encoding.ASCII.GetBytes(str)[0];
         }
 
-        public static byte[] appendByteArray(byte[] x, byte[] y)
-        {
-            List<byte> list = new List<byte>();
-            list.AddRange(x);
-            list.AddRange(y);
-            byte[] z = list.ToArray();
-            return z;
-        }
-
         public static bool Compare(ReadOnlySpan<byte> a1, ReadOnlySpan<byte> a2)
         {
             return a1.SequenceEqual(a2);
         }
 
-
         public static string ConvertByteToString(byte[] byteContents)
         {
-            string content = "";
-            using (StreamReader reader = new StreamReader(new MemoryStream(byteContents), Encoding.UTF8))
+            if (byteContents == null || byteContents.Length == 0)
             {
-                content = string.Join("", reader.ReadToEnd().ToCharArray());
+                return "";
             }
 
-            return content;
+            using (StreamReader reader = new StreamReader(new MemoryStream(byteContents), Encoding.UTF8))
+            {
+                return string.Join("", reader.ReadToEnd().ToCharArray());
+            }
+        }
+
+        public static byte[] ConvertStringToByte(string text)
+        {
+            text = text ?? "";
+            return Encoding.ASCII.GetBytes(text);
+        }
+
+        public static byte[] AppendByteArray(byte[] x, byte[] y)
+        {
+            var z = new byte[x.Length + y.Length];
+            x.CopyTo(z, 0);
+            y.CopyTo(z, x.Length);
+
+            return z;
         }
     }
 }
