@@ -1,11 +1,5 @@
-﻿using EmbedTenantName.Helpers;
-using EmbedTenantName.Models;
-using System;
-using System.Collections.Generic;
+﻿using EmbedTenantName.Models;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace EmbedTenantName
 {
@@ -24,16 +18,16 @@ namespace EmbedTenantName
             string tagContents = "&tenantname=portaluat.pia.ai&username=tien.dang";
 
             bool removeAppendedTag = false;
-            bool setAppendedTag = false;
+            bool setAppendedTag = true;
             bool getAppendedTag = true;
 
             byte[] byteContent = File.ReadAllBytes(infilename);
             PE32Binary bin = PE32Binary.Create(byteContent);
 
-            //if (removeAppendedTag)
-            //{
-            //    bin.RemoveAppendedTag();
-            //}
+            if (removeAppendedTag)
+            {
+                bin.RemoveAppendedTag();
+            }
 
             if (setAppendedTag)
             {

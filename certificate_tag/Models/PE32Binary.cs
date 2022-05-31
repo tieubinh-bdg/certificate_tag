@@ -14,8 +14,8 @@ namespace EmbedTenantName.Models
         public int CertSizeOffset { get; set; } // the offset to the size of the attribute certificates table
         public byte[] Asn1Bytes { get; set; }   // the PKCS#7, SignedData in DER form.
         public byte[] AppendedTag { get; set; } // the appended tag, if any.
-        //public signedData     *signedData // the parsed SignedData structure.
-        
+                                                //public signedData     *signedData // the parsed SignedData structure.
+
         public static PE32Binary Create(byte[] byteContents)
         {
             (int offset, int size, int certSizeOffset) certAttr = GetAttributeCertificates(byteContents);
@@ -32,7 +32,7 @@ namespace EmbedTenantName.Models
                 Asn1Bytes = asn1Data
             };
         }
-        
+
         public string GetAppendedTag()
         {
             if (this.AppendedTag.Length == 0)
@@ -45,11 +45,55 @@ namespace EmbedTenantName.Models
 
         public void RemoveAppendedTag()
         {
-        }        
+            BuildBinary(null);
+        }
 
         public void SetAppendedTag(string tagString)
         {
+            byte[] tagBytes = ByteHelper.ConvertStringToByte(tagString);
+            BuildBinary(tagBytes);
+        }
 
+        private void BuildBinary(byte[] tag)
+        {
+            byte[] contents = ByteHelper.Slice(this.Contents, 0, this.CertSizeOffset);
+
+            while (((this.Asn1Bytes.Length + tag.Length) & 7).CompareTo(0) > 0)
+            {
+                // byte padding
+                tag = ByteHelper.AppendByteArray(tag, new byte[1] { 0 });
+            }
+
+            UInt32 attrCertSectionLen = (UInt32)(8 + this.Asn1Bytes.Length + tag.Length);
+            byte[] lengthBytes = new byte[4];
+
+            // todo Binh
+
+            //binary.LittleEndian.PutUint32(lengthBytes[:], attrCertSectionLen)
+
+            //contents = append(contents, lengthBytes[:4]...)
+
+            //contents = append(contents, bin.contents[bin.certSizeOffset + 4:bin.attrCertOffset]...)
+
+
+            //var header[8]byte
+
+            //binary.LittleEndian.PutUint32(header[:], attrCertSectionLen)
+
+            //binary.LittleEndian.PutUint16(header[4:], attributeCertificateRevision)
+
+            //binary.LittleEndian.PutUint16(header[6:], attributeCertificateTypePKCS7SignedData)
+
+            //contents = append(contents, header[:]...)
+
+            //contents = append(contents, asn1Data...)
+
+            //append(contents, tag...)
+
+            //// Update class instance after build
+            //this.Contents = contents;
+            //this.AppendedTag = ByteHelper.AppendByteArray(this.AppendedTag, tagBytes);
+            // ...more
         }
 
         private static (int offset, int size, int sizeOffset) GetAttributeCertificates(byte[] byteContents)

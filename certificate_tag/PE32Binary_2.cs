@@ -84,8 +84,8 @@ namespace EmbedTenantName
             byte[] lengthBytes = new byte[4];
             PutUint32(lengthBytes, attrCertSectionLen);
 
-            contentsBB = ByteHelper.appendByteArray(contentsBB, slicesArray(lengthBytes, 0, 4));
-            contentsBB = ByteHelper.appendByteArray(contentsBB, slicesArray(this.contents, this.certSizeOffset + 4, this.attrCertOffset));
+            contentsBB = ByteHelper.AppendByteArray(contentsBB, slicesArray(lengthBytes, 0, 4));
+            contentsBB = ByteHelper.AppendByteArray(contentsBB, slicesArray(this.contents, this.certSizeOffset + 4, this.attrCertOffset));
 
             byte[] header = new byte[8];
             
@@ -98,10 +98,10 @@ namespace EmbedTenantName
             header[7] = (byte)(attributeCertificateTypePKCS7SignedData >> 8);
 
 
-            contentsBB = ByteHelper.appendByteArray(contentsBB, header);
-            contentsBB = ByteHelper.appendByteArray(contentsBB, asn1Data);
+            contentsBB = ByteHelper.AppendByteArray(contentsBB, header);
+            contentsBB = ByteHelper.AppendByteArray(contentsBB, asn1Data);
             
-            return (ByteHelper.appendByteArray(contentsBB, tag), null);
+            return (ByteHelper.AppendByteArray(contentsBB, tag), null);
         }
 
         public (byte[], string) RemoveAppendedTag()
