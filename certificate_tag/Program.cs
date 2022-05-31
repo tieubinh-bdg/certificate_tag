@@ -1,5 +1,7 @@
 ﻿using EmbedTenantName.Helpers;
+using EmbedTenantName.Models;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -11,7 +13,6 @@ namespace EmbedTenantName
     {
         static void Main(string[] args)
         {
-
             GetWorkingFlow();
         }
 
@@ -20,8 +21,7 @@ namespace EmbedTenantName
             string filename = "Resource/sw";
             string infilename = filename + ".exe";
             string outfilename = filename + "_tag.exe";
-            string tagContents = "tenantname=portaluat.pia.ai&username=tien.dang";
-
+            string tagContents = "tenantname=portaluat.pia.ai&username=tien.dang..........";
 
             bool removeAppendedTag = false;
             bool setAppendedTag = false;
@@ -47,7 +47,7 @@ namespace EmbedTenantName
             {
                 // write byte content to file for output
 
-                byte[] outputByteContent = File.ReadAllBytes(outfilename);
+                byte[] outputByteContent = File.ReadAllBytes(infilename);
                 System.Console.WriteLine("Appended tag included: " + GetAppendedTag(outputByteContent));
             }
         }
@@ -72,18 +72,14 @@ namespace EmbedTenantName
         }
 
 
-        static (int offset, int size, int sizeOffset, string err) GetAttributeCertificates(byte[] byteContents)
+        static (int offset, int size, int sizeOffset) GetAttributeCertificates(byte[] byteContents)
         {
-            int offsetOfPEHeaderOffset = 0x3c; //60
-
-            int certificateTableIndex = 4;
-
-            if (byteContents.Count() < offsetOfPEHeaderOffset + 4)
+            if (byteContents.Count() < ByteHelper.OffsetOfPEHeaderOffset + 4)
             {
                 throw new Exception("binary truncated");
             }
 
-            uint peOffset = ByteHelper.CalculateLittleEndian(byteContents, offsetOfPEHeaderOffset);
+            uint peOffset = ByteHelper.CalculateLittleEndianToUInt32(byteContents.Skip(ByteHelper.OffsetOfPEHeaderOffset).ToArray());
             if (peOffset < 0 || peOffset + 4 < peOffset)
             {
                 throw new Exception("overflow finding PE signature");
@@ -101,24 +97,10 @@ namespace EmbedTenantName
             {
                 throw new Exception("PE header not found at expected offset");
             }
+            pe = ByteHelper.Slice(pe, 4, pe.Count());
 
-            string content;
-            using (StreamReader reader = new StreamReader(new MemoryStream(ByteHelper.Slice(pe, 4, pe.Count()).Reverse().ToArray())))
-            {
-                var x = reader.ReadToEnd().ToCharArray();
-                Array.Reverse(x);
-                content = string.Join("", x.Skip(x.Count() - 50).ToArray());
-            }
-
-            //BinaryReader reader = new BinaryReader();
-            //reader.Read()
-
-            //var r = io.Reader(bytes.NewReader(pe[4:]));
-            //var fileHeader fileHeader;
-            //binary.Read(r, binary.LittleEndian, &fileHeader);
-
-            //FileHeader x = new FileHeader();
-
+            FileHeader fileHeader = FileHeader.Create(pe.Take(FileHeader.Size).ToArray(), true);
+            pe = ByteHelper.Slice(pe, FileHeader.Size, pe.Count());
 
             //if (fileHeader.Characteristics & coffCharacteristicExecutableImage == 0)
             //{
@@ -130,74 +112,75 @@ namespace EmbedTenantName
             //    throw new Exception("file is a DLL");
             //}
 
-            //r = io.LimitReader(r, int64(fileHeader.SizeOfOptionalHeader));
-            //var optionalHeader optionalHeader;
-            //binary.Read(r, binary.LittleEndian, &optionalHeader);
+            OptionalHeader optionalHeader = OptionalHeader.Create(pe.Take(fileHeader.SizeOfOptionalHeader)
+                                                                    .ToArray(), true);
+            pe = ByteHelper.Slice(pe, OptionalHeader.Size, pe.Count());
 
-            //// addressSize is the size of various fields in the Windows-specific
-            //// header to follow.
-            //int addressSize;
-            //switch (optionalHeader.Magic)
-            //{
-            //    case pe32PlusMagic:
-            //        addressSize = 8;
-
-            //    case pe32Magic:
-            //        addressSize = 4;
-
-            //        // PE32 contains an additional field in the optional header.
-            //        UInt32 baseOfData;
-            //        binary.Read(r, binary.LittleEndian, &baseOfData); // check if operation is valid
-
-            //    default:
-            //        throw new Exception("unknown magic in optional header: %x", optionalHeader.Magic);
-            //}
+            // addressSize is the size of various fields in the Windows-specific header to follow.
+            int addressSize;
+            if (optionalHeader.Magic == ByteHelper.Pe32PlusMagic)
+            {
+                addressSize = 8;
+            }
+            else if (optionalHeader.Magic == ByteHelper.Pe32Magic)
+            {
+                addressSize = 4;
+                pe = ByteHelper.Slice(pe, 4, pe.Count());
+            }
+            else
+            {
+                throw new Exception("unknown magic in optional header: " + optionalHeader.Magic);
+            }
 
             //// Skip the Windows-specific header section up to the number of data
             //// directory entries.
-            //var toSkip = addressSize + 40 + addressSize * 4 + 4;
+            int toSkip = addressSize + 40 + addressSize * 4 + 4;
+            pe = ByteHelper.Slice(pe, toSkip, pe.Count());
 
-            //var skipBuf = make([]byte, toSkip);
-            //r.Read(skipBuf); // check if operation is valid
+            // Read the number of directory entries, which is also the last value
+            // in the Windows-specific header.
+            UInt32 numDirectoryEntries = ByteHelper.CalculateLittleEndianToUInt32(pe.Take(4).ToArray());
+            pe = ByteHelper.Slice(pe, 4, pe.Count());
 
-            //// Read the number of directory entries, which is also the last value
-            //// in the Windows-specific header.
-            //UInt32 numDirectoryEntries;
-            //binary.Read(r, binary.LittleEndian, &numDirectoryEntries);
+            if (numDirectoryEntries > 4096)
+            {
+                throw new Exception("invalid number of directory entries:" + numDirectoryEntries);
+            }
 
-            //if (numDirectoryEntries > 4096)
-            //{
-            //    throw new Exception("invalid number of directory entries: %d", numDirectoryEntries);
-            //}
+            toSkip = 0;
+            List<DataDirectory> dataDirectories = new List<DataDirectory>();
+            for (int i = 0; i < numDirectoryEntries; i++)
+            {
+                DataDirectory dataDirectory = DataDirectory.Create(pe.Skip(toSkip).Take(8).ToArray(), true);
+                dataDirectories.Add(dataDirectory);
+                toSkip += 8;
+            }
+            pe = ByteHelper.Slice(pe, toSkip, pe.Count());
 
-            //var dataDirectory = make([]dataDirectory, numDirectoryEntries);
-            //binary.Read(r, binary.LittleEndian, dataDirectory);
+            if (numDirectoryEntries <= ByteHelper.CertificateTableIndex)
+            {
+                throw new Exception("file does not have enough data directory entries for a certificate");
 
-            //if (numDirectoryEntries <= certificateTableIndex)
-            //{
-            //    throw new Exception("file does not have enough data directory entries for a certificate");
+            }
 
-            //}
+            var certEntry = dataDirectories[ByteHelper.CertificateTableIndex];
 
-            //var certEntry = dataDirectory[certificateTableIndex];
+            if (certEntry.VirtualAddress == 0)
+            {
+                throw new Exception("file does not have certificate data");
+            }
 
-            //if (certEntry.VirtualAddress == 0)
-            //{
-            //    throw new Exception("file does not have certificate data");
-            //}
+            var certEntryEnd = certEntry.VirtualAddress + certEntry.Size;
 
+            if (certEntryEnd < certEntry.VirtualAddress)
+            {
+                throw new Exception("overflow while calculating end of certificate entry");
+            }
 
-            //var certEntryEnd = certEntry.VirtualAddress + certEntry.Size;
-
-            //if (certEntryEnd < certEntry.VirtualAddress)
-            //{
-            //    throw new Exception("overflow while calculating end of certificate entry");
-            //}
-
-            //if (int(certEntryEnd) != len(byteContents))
-            //{
-            //    throw new Exception("certificate entry is not at end of file: %d vs %d", int(certEntryEnd), len(byteContents));
-            //}
+            if (certEntryEnd != byteContents.Count())
+            {
+                throw new Exception($"certificate entry is not at end of file: {certEntryEnd} vs {byteContents.Length}");
+            }
 
             //byte dummyByte[1];
 
@@ -207,46 +190,87 @@ namespace EmbedTenantName
             //    throw new Exception("optional header contains extra data after data directory");
             //}
 
-            //var offset = int(certEntry.VirtualAddress);
-            //var size = int(certEntry.Size);
-            //var sizeOffset = int(peOffset) + 4 + fileHeaderSize + int(fileHeader.SizeOfOptionalHeader) - 8 * (int(numDirectoryEntries) - certificateTableIndex) + 4;
+            var offset = (int)certEntry.VirtualAddress;
+            var size = (int)certEntry.Size;
+            var sizeOffset = peOffset + 4 + FileHeader.Size + fileHeader.SizeOfOptionalHeader - 8 * (numDirectoryEntries - ByteHelper.CertificateTableIndex) + 4;
 
 
-            //if (ByteHelper.CalculateLittleEndian(ByteHelper.Slice(byteContents, sizeOffset, byteContents.Count())) != certEntry.Size)
-            //{
-            //    throw new Exception("internal error when calculating certificate data size offset");
-            //}
+            if (ByteHelper.CalculateLittleEndianToUInt32(ByteHelper.Slice(byteContents, (int)sizeOffset, byteContents.Count())) != certEntry.Size)
+            {
+                throw new Exception("internal error when calculating certificate data size offset");
+            }
 
-            return (0, 0, 0, "");
+            return (offset, size, (int)sizeOffset);
+        }
+
+        static (byte[] Asn1Data, string appendedTag) ProcessAttributeCertificates(byte[] attributeCertificates)
+        {
+            if (attributeCertificates.Count() < 8)
+            {
+                throw new Exception("attribute certificate truncated");
+            }
+
+            // This reads a WIN_CERTIFICATE structure from
+            // http://msdn.microsoft.com/en-us/library/ms920091.aspx.
+            certLen:= binary.LittleEndian.Uint32(certs[:4])
+
+                revision:= binary.LittleEndian.Uint16(certs[4:6])
+
+                certType:= binary.LittleEndian.Uint16(certs[6:8])
+
+
+                if int(certLen) != len(certs) {
+                err = errors.New("multiple attribute certificates found")
+
+                    return
+
+                }
+
+            if revision != attributeCertificateRevision {
+                err = fmt.Errorf("unknown attribute certificate revision: %x", revision)
+
+                    return
+
+                }
+
+            if certType != attributeCertificateTypePKCS7SignedData {
+                err = fmt.Errorf("unknown attribute certificate type: %d", certType)
+
+                    return
+
+                }
+
+            asn1 = certs[8:]
+
+
+                if len(asn1) < 2 {
+                err = errors.New("ASN.1 structure truncated")
+
+                    return
+
+                }
+
+            asn1Length, err:= lengthAsn1(asn1)
+
+                if err != nil {
+                return
+
+                }
+            appendedTag = asn1[asn1Length:]
+
+                asn1 = asn1[:asn1Length]
+
+
+                return
         }
 
         static string GetAppendedTag(byte[] byteContents)
         {
-            // todo: Tien Dang
-            (int offset, int size, int certSizeOffset, string err) attr = GetAttributeCertificates(byteContents);
-            //if err != nil {
-            //    return nil, errors.New("authenticodetag: error parsing headers: " + err.Error())
+            (int offset, int size, int certSizeOffset) certAttr = GetAttributeCertificates(byteContents);
+            var attributeCertificates = ByteHelper.Slice(byteContents, certAttr.offset, certAttr.offset + certAttr.size);
 
-
-            //            }
-
-            //attributeCertificates:= contents[offset: offset + size]
-
-
-            //            asn1Data, appendedTag, err:= processAttributeCertificates(attributeCertificates)
-
-
-            //            if err != nil {
-            //        return nil, errors.New("authenticodetag: error parsing attribute certificate section: " + err.Error())
-
-            //            }
-
-            //    signedData, err:= parseSignedData(asn1Data)
-
-
-            //            if err != nil {
-            //        return nil, err
-
+            (byte[] asn1Data, string appendedTag) = ProcessAttributeCertificates(attributeCertificates);
+            //ByteHelper.ConvertByteToString(attributeCertificates);
             return "";
         }
     }
