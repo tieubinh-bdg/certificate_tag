@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -15,8 +14,14 @@ namespace EmbedTenantName.Helpers
         
         public const int OffsetOfPEHeaderOffset = 0x3c;
         public const int CertificateTableIndex = 4;
-        public const ushort coffCharacteristicExecutableImage = 2;
-        public const int coffCharacteristicDLL = 0x2000;
+        public const ushort CoffCharacteristicExecutableImage = 2;
+        public const int CoffCharacteristicDLL = 0x2000;
+
+        // Certificate constants. See http://msdn.microsoft.com/en-us/library/ms920091.aspx.
+        // Despite MSDN claiming that 0x100 is the only, current revision - in
+        // practice it's 0x200.
+        public const UInt32 AttributeCertificateRevision = 0x200;
+        public const UInt32 AttributeCertificateTypePKCS7SignedData = 2;
 
         public static byte[] Slice(byte[] arr, int x, int y)
         {
@@ -63,8 +68,7 @@ namespace EmbedTenantName.Helpers
             string content = "";
             using (StreamReader reader = new StreamReader(new MemoryStream(byteContents), Encoding.UTF8))
             {
-                var x = string.Join("", reader.ReadToEnd().ToCharArray());
-                content = string.Join("", x.ToArray());
+                content = string.Join("", reader.ReadToEnd().ToCharArray());
             }
 
             return content;

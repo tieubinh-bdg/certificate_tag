@@ -16,7 +16,7 @@ namespace EmbedTenantName
             GetWorkingFlow();
         }
 
-        static void GetWorkingFlow()
+        private static void GetWorkingFlow()
         {
             string filename = "Resource/sw";
             string infilename = filename + ".exe";
@@ -29,9 +29,6 @@ namespace EmbedTenantName
 
             // Get infile
             byte[] byteContent = File.ReadAllBytes(infilename);
-            //var binContent = NewBinary(contents);
-            //string base64Encoded = Convert.ToBase64String(buffer);
-            //buffer = Convert.FromBase64String(base64Encoded);
 
             if (removeAppendedTag)
             {
@@ -46,33 +43,34 @@ namespace EmbedTenantName
             if (getAppendedTag)
             {
                 // write byte content to file for output
+                // File.WriteFile if necessary
 
-                byte[] outputByteContent = File.ReadAllBytes(infilename);
+                byte[] outputByteContent = File.ReadAllBytes(outfilename);
                 System.Console.WriteLine("Appended tag included: " + GetAppendedTag(outputByteContent));
             }
         }
 
-        static byte[] BuildPE32File(byte[] byteContents, string tagContents)
+        private static byte[] BuildPE32File(byte[] byteContents, string tagContents)
         {
             // todo
             return byteContents;
         }
 
 
-        static byte[] RemoveAppendedTag(byte[] byteContents)
+        private static byte[] RemoveAppendedTag(byte[] byteContents)
         {
             // todo
             return BuildPE32File(byteContents, null);
         }
 
-        static byte[] SetAppendedTag(byte[] byteContents, string tagContents)
+        private static byte[] SetAppendedTag(byte[] byteContents, string tagContents)
         {
             // todo
             return BuildPE32File(byteContents, tagContents);
         }
 
 
-        static (int offset, int size, int sizeOffset) GetAttributeCertificates(byte[] byteContents)
+        private static (int offset, int size, int sizeOffset) GetAttributeCertificates(byte[] byteContents)
         {
             if (byteContents.Count() < ByteHelper.OffsetOfPEHeaderOffset + 4)
             {
@@ -203,7 +201,42 @@ namespace EmbedTenantName
             return (offset, size, (int)sizeOffset);
         }
 
-        static (byte[] Asn1Data, string appendedTag) ProcessAttributeCertificates(byte[] attributeCertificates)
+        private static int GetLengthAsn1(byte[] asn1)
+        {
+            int asn1Length;
+            // Read the ASN.1 length of the object.
+            if ((asn1[1] & 0x80).Equals(0))
+            {
+                // Short form length.
+                asn1Length = (int)asn1[1] + 2;
+            }
+            else
+            {
+                int numBytes = asn1[1] & 0x7f;
+                if (numBytes == 0 || numBytes > 2)
+                {
+                    throw new Exception("bad number of bytes in ASN.1 length: " + numBytes);
+                }
+
+                if (asn1.Length < numBytes + 2)
+                {
+                    throw new Exception("ASN.1 structure truncated");
+                }
+
+                asn1Length = (int)asn1[2];
+                if (numBytes == 2)
+                {
+                    asn1Length <<= 8;
+                    asn1Length |= (int)asn1[3];
+                }
+
+                asn1Length += 2 + numBytes;
+            }
+
+            return asn1Length;
+        }
+
+        private static (byte[] asn1Data, byte[] appendedTag) ProcessAttributeCertificates(byte[] attributeCertificates)
         {
             if (attributeCertificates.Count() < 8)
             {
@@ -212,66 +245,43 @@ namespace EmbedTenantName
 
             // This reads a WIN_CERTIFICATE structure from
             // http://msdn.microsoft.com/en-us/library/ms920091.aspx.
-            certLen:= binary.LittleEndian.Uint32(certs[:4])
+            var certLen = ByteHelper.CalculateLittleEndianToUInt32(attributeCertificates.Take(4).ToArray());
+            var revision = ByteHelper.CalculateLittleEndianToUInt16(ByteHelper.Slice(attributeCertificates, 4, 6));
+            var certType = ByteHelper.CalculateLittleEndianToUInt16(ByteHelper.Slice(attributeCertificates, 6, 8));
 
-                revision:= binary.LittleEndian.Uint16(certs[4:6])
+            if (certLen != attributeCertificates.Length)
+            {
+                throw new Exception("multiple attribute certificates found");
+            }
 
-                certType:= binary.LittleEndian.Uint16(certs[6:8])
+            if (revision != ByteHelper.AttributeCertificateRevision)
+            {
+                throw new Exception("unknown attribute certificate revision: " + revision);
+            }
 
+            if (certType != ByteHelper.AttributeCertificateTypePKCS7SignedData)
+            {
+                throw new Exception("unknown attribute certificate type: " + certType);
+            }
 
-                if int(certLen) != len(certs) {
-                err = errors.New("multiple attribute certificates found")
+            byte[] asn1 = ByteHelper.Slice(attributeCertificates, 8, attributeCertificates.Length);
 
-                    return
+            if (asn1.Length < 2)
+            {
+                throw new Exception("ASN.1 structure truncated");
+            }
 
-                }
-
-            if revision != attributeCertificateRevision {
-                err = fmt.Errorf("unknown attribute certificate revision: %x", revision)
-
-                    return
-
-                }
-
-            if certType != attributeCertificateTypePKCS7SignedData {
-                err = fmt.Errorf("unknown attribute certificate type: %d", certType)
-
-                    return
-
-                }
-
-            asn1 = certs[8:]
-
-
-                if len(asn1) < 2 {
-                err = errors.New("ASN.1 structure truncated")
-
-                    return
-
-                }
-
-            asn1Length, err:= lengthAsn1(asn1)
-
-                if err != nil {
-                return
-
-                }
-            appendedTag = asn1[asn1Length:]
-
-                asn1 = asn1[:asn1Length]
-
-
-                return
+            var asn1Length = GetLengthAsn1(asn1);
+            return (ByteHelper.Slice(asn1, 0, asn1Length), ByteHelper.Slice(asn1, asn1Length, asn1.Length));
         }
 
-        static string GetAppendedTag(byte[] byteContents)
+        private static string GetAppendedTag(byte[] byteContents)
         {
             (int offset, int size, int certSizeOffset) certAttr = GetAttributeCertificates(byteContents);
             var attributeCertificates = ByteHelper.Slice(byteContents, certAttr.offset, certAttr.offset + certAttr.size);
 
-            (byte[] asn1Data, string appendedTag) = ProcessAttributeCertificates(attributeCertificates);
-            //ByteHelper.ConvertByteToString(attributeCertificates);
-            return "";
+            (byte[] asn1Data, byte[] appendedTag) = ProcessAttributeCertificates(attributeCertificates);
+            return ByteHelper.ConvertByteToString(appendedTag);
         }
     }
 }
