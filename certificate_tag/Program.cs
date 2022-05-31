@@ -100,18 +100,17 @@ namespace EmbedTenantName
             FileHeader fileHeader = FileHeader.Create(pe.Take(FileHeader.Size).ToArray(), true);
             pe = ByteHelper.Slice(pe, FileHeader.Size, pe.Count());
 
-            //if (fileHeader.Characteristics & coffCharacteristicExecutableImage == 0)
-            //{
-            //    throw new Exception("file is not an executable image");
-            //}
+            if ((fileHeader.Characteristics & ByteHelper.CoffCharacteristicExecutableImage).Equals(0))
+            {
+                throw new Exception("file is not an executable image");
+            }
 
-            //if (fileHeader.Characteristics & coffCharacteristicDLL != 0)
-            //{
-            //    throw new Exception("file is a DLL");
-            //}
+            if ((fileHeader.Characteristics & ByteHelper.CoffCharacteristicDLL).CompareTo(0) != 0)
+            {
+                throw new Exception("file is a dll");
+            }
 
-            OptionalHeader optionalHeader = OptionalHeader.Create(pe.Take(fileHeader.SizeOfOptionalHeader)
-                                                                    .ToArray(), true);
+            OptionalHeader optionalHeader = OptionalHeader.Create(pe.Take(fileHeader.SizeOfOptionalHeader).ToArray(), true);
             pe = ByteHelper.Slice(pe, OptionalHeader.Size, pe.Count());
 
             // addressSize is the size of various fields in the Windows-specific header to follow.
@@ -191,7 +190,6 @@ namespace EmbedTenantName
             var offset = (int)certEntry.VirtualAddress;
             var size = (int)certEntry.Size;
             var sizeOffset = peOffset + 4 + FileHeader.Size + fileHeader.SizeOfOptionalHeader - 8 * (numDirectoryEntries - ByteHelper.CertificateTableIndex) + 4;
-
 
             if (ByteHelper.CalculateLittleEndianToUInt32(ByteHelper.Slice(byteContents, (int)sizeOffset, byteContents.Count())) != certEntry.Size)
             {
