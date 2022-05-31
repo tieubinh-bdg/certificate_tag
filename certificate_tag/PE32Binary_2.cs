@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace EmbedTenantName
 {
-    class PE32Binary
+    class PE32Binary_2
     {
         // PE32Binary represents a PE binary.
 
