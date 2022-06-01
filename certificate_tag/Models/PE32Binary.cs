@@ -42,7 +42,10 @@ namespace EmbedTenantName.Models
 
             return ByteHelper.ConvertByteToString(this.AppendedTag);
         }
-
+        public string GetContent()
+        {
+            return ByteHelper.ConvertByteToString(this.Contents);
+        }
         public void RemoveAppendedTag()
         {
             BuildBinary(null);
@@ -57,43 +60,50 @@ namespace EmbedTenantName.Models
         private void BuildBinary(byte[] tag)
         {
             byte[] contents = ByteHelper.Slice(this.Contents, 0, this.CertSizeOffset);
-
-            while (((this.Asn1Bytes.Length + tag.Length) & 7).CompareTo(0) > 0)
+            
+            if(tag != null)
             {
-                // byte padding
-                tag = ByteHelper.AppendByteArray(tag, new byte[1] { 0 });
+                while (((this.Asn1Bytes.Length + tag.Length) & 7).CompareTo(0) > 0)
+                {
+                    // byte padding
+                    tag = ByteHelper.AppendByteArray(tag, new byte[1] { 0 });
+                }
             }
-
+            
             UInt32 attrCertSectionLen = (UInt32)(8 + this.Asn1Bytes.Length + tag.Length);
             byte[] lengthBytes = new byte[4];
 
-            // todo Binh
+            ByteHelper.PutUint32(lengthBytes, attrCertSectionLen);
 
-            //binary.LittleEndian.PutUint32(lengthBytes[:], attrCertSectionLen)
+            contents = ByteHelper.AppendByteArray(contents, ByteHelper.Slice(lengthBytes, 0, 4));
+            if(tag!= null)
+            {
+                contents = ByteHelper.AppendByteArray(contents, ByteHelper.Slice(this.Contents, this.CertSizeOffset + 4, this.AttrCertOffset));
+            }
+            
+            byte[] header = new byte[8];
 
-            //contents = append(contents, lengthBytes[:4]...)
+            ByteHelper.PutUint32(header, attrCertSectionLen);
 
-            //contents = append(contents, bin.contents[bin.certSizeOffset + 4:bin.attrCertOffset]...)
+            //header[4] = (byte) 0x200;
+            header[5] = (byte)(ByteHelper.AttributeCertificateRevision >> 8);
 
+            header[6] = (byte)(ByteHelper.AttributeCertificateTypePKCS7SignedData);
+            header[7] = (byte)(ByteHelper.AttributeCertificateTypePKCS7SignedData >> 8);
 
-            //var header[8]byte
+            contents = ByteHelper.AppendByteArray(contents, header);
+            contents = ByteHelper.AppendByteArray(contents, this.Asn1Bytes);
 
-            //binary.LittleEndian.PutUint32(header[:], attrCertSectionLen)
-
-            //binary.LittleEndian.PutUint16(header[4:], attributeCertificateRevision)
-
-            //binary.LittleEndian.PutUint16(header[6:], attributeCertificateTypePKCS7SignedData)
-
-            //contents = append(contents, header[:]...)
-
-            //contents = append(contents, asn1Data...)
-
-            //append(contents, tag...)
-
-            //// Update class instance after build
-            //this.Contents = contents;
-            //this.AppendedTag = ByteHelper.AppendByteArray(this.AppendedTag, tagBytes);
-            // ...more
+            if (tag != null)
+            {
+                this.Contents = ByteHelper.AppendByteArray(contents, tag);
+                this.AppendedTag = ByteHelper.AppendByteArray(this.AppendedTag, tag);
+            }
+            else
+            {
+                this.AppendedTag = new byte[0];
+                this.Contents = contents;
+            }
         }
 
         private static (int offset, int size, int sizeOffset) GetAttributeCertificates(byte[] byteContents)
@@ -121,8 +131,8 @@ namespace EmbedTenantName.Models
             {
                 throw new Exception("PE header not found at expected offset");
             }
-            pe = ByteHelper.Slice(pe, 4, pe.Count());
 
+            pe = ByteHelper.Slice(pe, 4, pe.Count());
             FileHeader fileHeader = FileHeader.Create(pe.Take(FileHeader.Size).ToArray(), true);
             pe = ByteHelper.Slice(pe, FileHeader.Size, pe.Count());
 
@@ -183,7 +193,6 @@ namespace EmbedTenantName.Models
             if (numDirectoryEntries <= ByteHelper.CertificateTableIndex)
             {
                 throw new Exception("file does not have enough data directory entries for a certificate");
-
             }
 
             var certEntry = dataDirectories[ByteHelper.CertificateTableIndex];
@@ -296,6 +305,7 @@ namespace EmbedTenantName.Models
             }
 
             var asn1Length = GetLengthAsn1(asn1);
+
             return (ByteHelper.Slice(asn1, 0, asn1Length), ByteHelper.Slice(asn1, asn1Length, asn1.Length));
         }
 

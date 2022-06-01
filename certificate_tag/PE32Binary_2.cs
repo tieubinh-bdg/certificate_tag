@@ -82,6 +82,7 @@ namespace EmbedTenantName
             }
             UInt32 attrCertSectionLen = (UInt32)(8 + asn1Data.Length + tag.Length);
             byte[] lengthBytes = new byte[4];
+
             PutUint32(lengthBytes, attrCertSectionLen);
 
             contentsBB = ByteHelper.AppendByteArray(contentsBB, slicesArray(lengthBytes, 0, 4));
