@@ -10,6 +10,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="Resource\OrchestratorAgentService.1.0.20220320.2.exe">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="Resource\sw.exe">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

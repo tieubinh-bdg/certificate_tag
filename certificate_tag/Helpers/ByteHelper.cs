@@ -17,7 +17,6 @@ namespace EmbedTenantName.Helpers
         public const ushort CoffCharacteristicExecutableImage = 2;
         public const int CoffCharacteristicDLL = 0x2000;
 
-        // Certificate constants. See http://msdn.microsoft.com/en-us/library/ms920091.aspx.
         // Despite MSDN claiming that 0x100 is the only, current revision - in
         // practice it's 0x200.
         public const UInt32 AttributeCertificateRevision = 0x200;
@@ -65,13 +64,39 @@ namespace EmbedTenantName.Helpers
                 return string.Join("", reader.ReadToEnd().ToCharArray());
             }
         }
-
+        public static void PutUint32(byte[] arr, UInt32 x)
+        {
+            arr[0] = (byte) x;
+            arr[1] = (byte)(x >> 8);
+            arr[2] = (byte)(x >> 16);
+            arr[3] = (byte)(x >> 24);
+        }
+        public static void PutUint16(byte[] b, UInt16 v)
+        {
+            b[0] = (byte)v;
+            b[1] = (byte)(v >> 8);
+        }
         public static byte[] ConvertStringToByte(string text)
         {
             text = text ?? "";
             return Encoding.ASCII.GetBytes(text);
         }
-
+        public static bool ByteArrayToFile(string fileName, byte[] byteArray)
+        {
+            try
+            {
+                using (var fs = new FileStream(fileName, FileMode.Create, FileAccess.Write))
+                {
+                    fs.Write(byteArray, 0, byteArray.Length);
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Exception caught in process: {0}", ex);
+                return false;
+            }
+        }
         public static byte[] AppendByteArray(byte[] x, byte[] y)
         {
             var z = new byte[x.Length + y.Length];
