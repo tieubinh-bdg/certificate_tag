@@ -69,8 +69,14 @@ namespace EmbedTenantName.Models
                     tag = ByteHelper.AppendByteArray(tag, new byte[1] { 0 });
                 }
             }
-            
-            UInt32 attrCertSectionLen = (UInt32)(8 + this.Asn1Bytes.Length + tag.Length);
+
+            UInt32 attrCertSectionLen = 0;
+            if (tag != null)
+            {
+                attrCertSectionLen = (UInt32)(8 + this.Asn1Bytes.Length + tag.Length);
+            }
+
+
             byte[] lengthBytes = new byte[4];
 
             ByteHelper.PutUint32(lengthBytes, attrCertSectionLen);

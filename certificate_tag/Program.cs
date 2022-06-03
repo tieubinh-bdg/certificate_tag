@@ -13,7 +13,7 @@ namespace EmbedTenantName
 
         private static void GetWorkingFlow()
         {
-            string filename = "Resource/OrchestratorAgentService.1.0.20220320.2";
+            string filename = "Resource/OrchestratorAgentService.2";
             string infilename = filename + ".exe";
             string outfilename = filename + "_tag.exe";
             string tagContents = "&tenantname=portaluat.pia.ai&username=tien.dang";
@@ -36,15 +36,17 @@ namespace EmbedTenantName
 
             if (setAppendedTag)
             {
+                System.Console.WriteLine("-----------------Set appended tag process-----------");
                 bin.SetAppendedTag(tagContents);
+                System.Console.ReadLine();
             }
 
             if (getAppendedTag)
             {
-                //File.WriteAllBytes("binh.exe", bin.Contents);
-                //System.Console.WriteLine(ByteHelper.ByteArrayToFile(outfilename, bin.Contents));
+                System.Console.WriteLine("-----------------Get appended tag process-----------");
                 System.Console.WriteLine("Appended tag included: " + bin.GetAppendedTag());
-                //System.Console.WriteLine("Contents: " + bin.GetContent());
+                System.Console.WriteLine("Create OrchestratorAgentService_tag.exe that has appendedTag : " + ByteHelper.ByteArrayToFile(outfilename, bin.Contents));
+                
             }
         }
     }
